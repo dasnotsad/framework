@@ -29,7 +29,7 @@ import org.springframework.util.StringUtils;
  */
 @Component
 @Slf4j
-public class DasnotsadKafkaProducer {
+public class KafkaProducer {
 
 	private static final String KAFKA_DELAY_TOPIC = "wheel_time_delay_topic";
 

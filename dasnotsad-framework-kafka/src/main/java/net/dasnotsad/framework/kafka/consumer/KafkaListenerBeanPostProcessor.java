@@ -22,7 +22,7 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
 
     @Autowired
-    private DasnotsadKafkaConsumer dasnotsadKafkaConsumer;
+    private KafkaConsumerInit kafkaConsumerInit;
 
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
@@ -36,7 +36,7 @@ public class KafkaListenerBeanPostProcessor implements BeanPostProcessor {
                 (MetadataLookup<KafkaListener>) method -> AnnotatedElementUtils.findMergedAnnotation(method, KafkaListener.class));
         if (!annotatedMethods.isEmpty()) {
             for (Entry<Method, KafkaListener> entry : annotatedMethods.entrySet()) {
-                dasnotsadKafkaConsumer.consumeAsync(bean, entry.getKey(), entry.getValue());
+                kafkaConsumerInit.consumeAsync(bean, entry.getKey(), entry.getValue());
             }
         }
         return bean;

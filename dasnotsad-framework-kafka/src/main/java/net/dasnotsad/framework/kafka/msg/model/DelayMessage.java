@@ -3,8 +3,8 @@ package net.dasnotsad.framework.kafka.msg.model;
 import lombok.Data;
 
 /**
- * @Author: dgg-linhongda
- * @Date: 2019/11/5 0005
+ * @Author: liuliwei
+ * @Date: 2019-11-5
  * @Description: Kafka延迟生产参数
  */
 @Data

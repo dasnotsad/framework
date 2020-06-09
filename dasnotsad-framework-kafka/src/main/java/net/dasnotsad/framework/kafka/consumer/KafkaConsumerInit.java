@@ -43,7 +43,7 @@ import javax.annotation.Resource;
  */
 @Slf4j
 @Component
-public class DasnotsadKafkaConsumer {
+public class KafkaConsumerInit {
 
 	@Autowired
 	private KafkaContainer kafkaContainer;
