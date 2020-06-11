@@ -60,7 +60,7 @@ public class KafkaConsumerInit {
 
 		if (topics == null || topics.length == 0) {
 			if (StringUtils.isEmpty(kafkaListener.topicName())) {
-				throw new RuntimeException("@DggKafkaListener topicName or topicNames must be setting");
+				throw new RuntimeException("@KafkaListener topicName or topicNames must be setting");
 			}
 			topics = new String[] { kafkaListener.topicName() };
 		}
@@ -77,18 +77,18 @@ public class KafkaConsumerInit {
 		ExecutorService consumerExecutor = new ThreadPoolExecutor(consumerNum, consumerNum, 0L, TimeUnit.MILLISECONDS,
 				new SynchronousQueue<>(), new ThreadPoolExecutor.CallerRunsPolicy());
 		while (--consumerNum >= 0) {
-			consumerExecutor.submit(new DggInternalConsumer(bean, method, topicNames, threadNum, kafkaListener));
+			consumerExecutor.submit(new InternalConsumer(bean, method, topicNames, threadNum, kafkaListener));
 		}
 	}
 
-	class DggInternalConsumer implements Runnable {
+	class InternalConsumer implements Runnable {
 		private Object bean;
 		private Method method;
 		private Set<String> topics;
 		private int threadNum;
 		private KafkaListener kafkaListener;
 
-		public DggInternalConsumer(Object bean, Method method, Set<String> topics, int threadNum, KafkaListener kafkaListener) {
+		public InternalConsumer(Object bean, Method method, Set<String> topics, int threadNum, KafkaListener kafkaListener) {
 			this.bean = bean;
 			this.method = method;
 			this.topics = topics;
@@ -114,7 +114,7 @@ public class KafkaConsumerInit {
 				for (;;) {
 					ConsumerRecords<String, byte[]> records = kafkaConsumer.poll(Duration.ofSeconds(1));
 					if (!records.isEmpty()) {
-						internalExecutor.submit(new DggInternalExecutor(bean, method, records));
+						internalExecutor.submit(new InternalExecutor(bean, method, records));
 					}
 				}
 			} finally {
@@ -123,13 +123,13 @@ public class KafkaConsumerInit {
 		}
 	}
 
-	class DggInternalExecutor implements Runnable {
+	class InternalExecutor implements Runnable {
 
 		private Object bean;
 		private Method method;
 		private ConsumerRecords<String, byte[]> records;
 
-		public DggInternalExecutor(Object bean, Method method, ConsumerRecords<String, byte[]> records) {
+		public InternalExecutor(Object bean, Method method, ConsumerRecords<String, byte[]> records) {
 			this.bean = bean;
 			this.method = method;
 			this.records = records;

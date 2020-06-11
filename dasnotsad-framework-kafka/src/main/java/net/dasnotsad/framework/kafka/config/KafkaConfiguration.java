@@ -30,7 +30,7 @@ public class KafkaConfiguration {
 	private KafkaProperties kafkaProperties;
 
 	@Bean
-	public KafkaContainer dggKafkaContainer() {
+	public KafkaContainer kafkaContainer() {
 		Properties producerProperties = getProducerProperties();
 		KafkaContainer containers = new KafkaContainer(producerProperties);
 		for (Entry<Integer, String> entry : kafkaProperties.getKafka().entrySet()) {
@@ -62,7 +62,7 @@ public class KafkaConfiguration {
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-	public KafkaListenerBeanPostProcessor dggKafkaListenerBeanPostProcessor() {
+	public KafkaListenerBeanPostProcessor kafkaListenerBeanPostProcessor() {
 		return new KafkaListenerBeanPostProcessor();
 	}
 }

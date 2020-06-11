@@ -4,30 +4,24 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>net.dasnotsad.framework.tac</groupId>
-	<artifactId>dasnotsad-framework-kafka</artifactId>
+	<artifactId>dasnotsad-framework-elasticsearch</artifactId>
 	<version>1.0.0-RELEASE</version>
 	<packaging>jar</packaging>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<elasticsearch-client.version>6.5.0</elasticsearch-client.version>
 		<fastjson.version>1.2.70</fastjson.version>
 		<spring-context.version>5.2.7.RELEASE</spring-context.version>
-		<snakeyaml.version>1.26</snakeyaml.version>
-		<kafka-clients.version>2.3.0</kafka-clients.version>
 		<spring-boot.version>2.3.0.RELEASE</spring-boot.version>
 		<lombok.version>1.18.10</lombok.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
-			<groupId>org.yaml</groupId>
-			<artifactId>snakeyaml</artifactId>
-			<version>${snakeyaml.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka-clients</artifactId>
-			<version>${kafka-clients.version}</version>
+			<groupId>org.elasticsearch.client</groupId>
+			<artifactId>elasticsearch-rest-high-level-client</artifactId>
+			<version>${elasticsearch-client.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.alibaba</groupId>
