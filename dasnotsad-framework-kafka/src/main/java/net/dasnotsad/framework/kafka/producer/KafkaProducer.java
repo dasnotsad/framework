@@ -74,6 +74,18 @@ public class KafkaProducer {
 	/**
 	 * 同步发送一条消息
 	 *
+	 * @param whichDataSource 数据源标识
+	 * @param topic           主题
+	 * @param message         消息体
+	 * @return success:成功 faild:失败
+	 */
+	public PushReturnType pushMsgSync(int whichDataSource, String topic, Object message) {
+		return pushMsgSync(whichDataSource, topic, null, message);
+	}
+
+	/**
+	 * 同步发送一条消息
+	 *
 	 * @param topic           主题
 	 * @param key             自定义key，若指定则PR会按照hasy(key)发送至对应Partition
 	 * @param message         消息体
@@ -125,6 +137,18 @@ public class KafkaProducer {
 	 */
 	public void pushMsgAsync(String topic, Object message, ProducerAsyncHandler callBack) {
 		pushMsgAsync(whichDataSource.get(), topic, null, message, callBack);
+	}
+
+	/**
+	 * 异步发送一条消息
+	 *
+	 * @param whichDataSource 数据源标识
+	 * @param topic       主题
+	 * @param message     消息体
+	 * @param callBack    异步的callBack方法
+	 */
+	public void pushMsgAsync(int whichDataSource, String topic, Object message, ProducerAsyncHandler callBack) {
+		pushMsgAsync(whichDataSource, topic, null, message, callBack);
 	}
 
 	/**
