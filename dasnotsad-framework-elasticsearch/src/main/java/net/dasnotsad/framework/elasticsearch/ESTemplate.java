@@ -36,6 +36,7 @@ import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.query.QueryBuilders;
@@ -403,7 +404,7 @@ public class ESTemplate {
 	 * @return
 	 */
 	public CreateIndexResponse createIndex(final String index, final int shards, final int replicas, final String type,
-			final Map mapping) {
+			final XContentBuilder mapping) {
 		return createIndex(whichDataSource.get(), index, shards, replicas, type, mapping);
 	}
 
@@ -419,7 +420,7 @@ public class ESTemplate {
 	 * @return
 	 */
 	public CreateIndexResponse createIndex(final int whichDataSource, final String index, final int shards,
-			final int replicas, final String type, final Map mapping) {
+			final int replicas, final String type, final XContentBuilder mapping) {
 		Objects.requireNonNull(index, "index must not be null");
 
 		CreateIndexRequest request = new CreateIndexRequest(index);
