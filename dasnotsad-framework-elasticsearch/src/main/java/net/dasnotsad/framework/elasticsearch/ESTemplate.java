@@ -94,8 +94,9 @@ public class ESTemplate {
 	private IOperator<GetIndexRequest, Boolean> indicesExistsOperator;
 	private IOperator<GetAliasesRequest, GetAliasesResponse> aliasesOperator;
 
-	private Map<Integer, ConcurrentLinkedQueue<IndexRequest>> delayMap;
-	private Timer timer;
+	private Map<Integer, ConcurrentLinkedQueue<IndexRequest>> delayMap;//异步写入存储
+	private Timer timer;//异步写入计时器
+	private Set<String> indexExists;//当前应用创建过的或已经验证过的索引缓存，用于提升indicesExists注解验证效率
 
 	public ESTemplate(@Value("${spring.application.name:}")String sysCode,
 					  @Value("${dasnotsad.paas.es.delaytime:5}")Long delayTime,
@@ -118,6 +119,7 @@ public class ESTemplate {
 		delayMap = new HashMap<>();
 		timer = new Timer();
 		whichDataSource = ThreadLocal.withInitial(() -> DEFAULT_DATASOURCE);
+		indexExists = new HashSet<>();
 	}
 
 	@PostConstruct
@@ -326,11 +328,19 @@ public class ESTemplate {
 	public boolean indicesExists(final int whichDataSource, final String index, final String type) {
 		Objects.requireNonNull(index, "index must not be null");
 
-		GetIndexRequest request = new GetIndexRequest();
-		request.indices(index);
-		if (type != null)
-			request.types(type);
-		return exec(whichDataSource, indicesExistsOperator, request);
+		String val = index.concat(type != null ? type : "");
+		if(indexExists.contains(val))
+			return true;
+		else{
+			GetIndexRequest request = new GetIndexRequest();
+			request.indices(index);
+			if (type != null)
+				request.types(type);
+			boolean isExists = exec(whichDataSource, indicesExistsOperator, request);
+			if(isExists)
+				indexExists.add(val);
+			return isExists;
+		}
 	}
 
 	@Deprecated
