@@ -55,6 +55,9 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * ES模板工具类
@@ -95,8 +98,8 @@ public class ESTemplate {
 	private IOperator<GetAliasesRequest, GetAliasesResponse> aliasesOperator;
 
 	private Map<Integer, ConcurrentLinkedQueue<IndexRequest>> delayMap;//异步写入存储
-	private Timer timer;//异步写入计时器
 	private Set<String> indexExists;//当前应用创建过的或已经验证过的索引缓存，用于提升indicesExists注解验证效率
+	private ScheduledExecutorService scheduledExecutorService;//异步写入计时器
 
 	public ESTemplate(@Value("${spring.application.name:}")String sysCode,
 					  @Value("${dasnotsad.paas.es.delaytime:5}")Long delayTime,
@@ -117,46 +120,50 @@ public class ESTemplate {
 		indicesExistsOperator = new IndicesExistsOperator();
 		aliasesOperator = new AliasesOperator();
 		delayMap = new HashMap<>();
-		timer = new Timer();
 		whichDataSource = ThreadLocal.withInitial(() -> DEFAULT_DATASOURCE);
 		indexExists = new HashSet<>();
+		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
 	}
 
 	@PostConstruct
 	private void initTemplate(){
-		timer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				try{//确保定时任务不被终止
-					for (Map.Entry<Integer, ConcurrentLinkedQueue<IndexRequest>> entry : delayMap.entrySet())
-						if(!entry.getValue().isEmpty()) {
-							log.info("************批处理化定时任务处理中...");
-							BulkRequest bulkRequest = new BulkRequest();
-							loop: for (int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
-								IndexRequest request = entry.getValue().poll();
-								if (request == null)
-									break loop;
-								bulkRequest.add(request);
-							}
-							if (!bulkRequest.requests().isEmpty()){
-								try{
-									BulkResponse response = bulk(entry.getKey(), bulkRequest);
-									if(!response.hasFailures())
-										log.info("************成功处理{}条", bulkRequest.requests().size());
-									else
-										log.error("************批处理化定时任务失败{}条", bulkRequest.requests().size());
-								}catch(Exception e){
-									e.printStackTrace();
-									log.error("************执行异步写入定时任务时发生异常", e.getMessage(), e);
-								}
+		scheduledExecutorService.scheduleWithFixedDelay(new AsyncInsert(),
+				3, 3, TimeUnit.SECONDS);
+	}
+
+	class AsyncInsert implements Runnable {
+
+		@Override
+		public void run() {
+			try{//确保定时任务不被终止
+				for (Map.Entry<Integer, ConcurrentLinkedQueue<IndexRequest>> entry : delayMap.entrySet())
+					if(!entry.getValue().isEmpty()) {
+						log.info("************批处理化定时任务处理中...");
+						BulkRequest bulkRequest = new BulkRequest();
+						loop: for (int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
+							IndexRequest request = entry.getValue().poll();
+							if (request == null)
+								break loop;
+							bulkRequest.add(request);
+						}
+						if (!bulkRequest.requests().isEmpty()){
+							try{
+								BulkResponse response = bulk(entry.getKey(), bulkRequest);
+								if(!response.hasFailures())
+									log.info("************成功处理{}条", bulkRequest.requests().size());
+								else
+									log.error("************批处理化定时任务失败{}条", bulkRequest.requests().size());
+							}catch(Exception e){
+								e.printStackTrace();
+								log.error("************执行异步写入定时任务时发生异常", e.getMessage(), e);
 							}
 						}
-				}catch(Exception e){
-					e.printStackTrace();
-					log.error("************批处理化定时任务发送异常", e.getMessage(), e);
-				}
+					}
+			}catch(Exception e){
+				e.printStackTrace();
+				log.error("************批处理化定时任务发送异常", e.getMessage(), e);
 			}
-		}, 0, 3000);//3秒后再次执行
+		}
 	}
 
 	/**
