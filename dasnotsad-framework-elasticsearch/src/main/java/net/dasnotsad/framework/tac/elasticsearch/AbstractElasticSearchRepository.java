@@ -40,6 +40,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 
+import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+
 /**
  * @Description: TODO
  * @Author Created by HOT SUN on 2020/7/22 .
@@ -198,7 +200,7 @@ public abstract class AbstractElasticSearchRepository<T, ID extends Serializable
         //遇到版本冲突将会记录进failures，而非中止
         request.setConflicts("proceed");
         BoolQueryBuilder termsBuilder = QueryBuilders.boolQuery();
-        terms.forEach((k, v) -> termsBuilder.must(new TermQueryBuilder(k, v)));
+        terms.forEach((k, v) -> termsBuilder.must(termQuery(k, v)));
         request.setQuery(termsBuilder);
         return this.getESTemplate().queryDelete(request);
     }

@@ -14,8 +14,6 @@ import net.dasnotsad.framework.tac.elasticsearch.retreat.feign.func.DelayMessage
 import net.dasnotsad.framework.tac.elasticsearch.utils.DeclaredFieldsUtil;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsVersion;
 import net.dasnotsad.framework.tac.elasticsearch.core.executor.IExector;
-import net.dasnotsad.framework.tac.elasticsearch.core.operator.impl.*;
-import net.dasnotsad.framework.tac.elasticsearch.core.page.*;
 import net.dasnotsad.framework.tac.elasticsearch.retreat.feign.model.OperationType;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.client.indices.CreateIndexRequest;
