@@ -2,6 +2,7 @@ package net.dasnotsad.framework.tac.elasticsearch;
 
 import com.alibaba.fastjson.JSONArray;
 import lombok.SneakyThrows;
+import net.dasnotsad.framework.tac.elasticsearch.utils.BeanUtil;
 import net.dasnotsad.framework.tac.elasticsearch.utils.IndexToolkit;
 import net.dasnotsad.framework.tac.elasticsearch.utils.MappingToolkit;
 import net.dasnotsad.framework.tac.data.metadata.Pageable;
@@ -637,12 +638,14 @@ public abstract class AbstractElasticSearchRepository<T, ID extends Serializable
 
     private Class<T> resolveReturnedClassFromGenericType() {
         Class<? extends AbstractElasticSearchRepository> current = this.getClass();
-        while (!AbstractElasticSearchRepository.class.equals(current.getSuperclass())) {
+        while (!AbstractElasticSearchRepository.class.equals(current)) {
+            Class superClassGenricType = BeanUtil.getSuperClassGenricType(current);
+            if (superClassGenricType != null) {
+                return superClassGenricType;
+            }
             current = (Class<? extends AbstractElasticSearchRepository>) current.getSuperclass();
         }
-        Type genType = current.getGenericSuperclass();
-        Type[] params = ((ParameterizedType) genType).getActualTypeArguments();
-        return (Class) params[0];
+        return (Class<T>) Object.class;
     }
 
     public final void setEntityClass(Class<T> entityClass) {

@@ -15,6 +15,42 @@ import java.util.*;
 public final class BeanUtil {
 
     /**
+     * 通过反射获取定义Class时声明的父类的范型参数的类型.</p>
+     * 如: public BookManager extends GenricManager<Book>
+     *
+     * @param clazz :  需要获取泛型的类Class
+     * @return
+     * @throws IndexOutOfBoundsException
+     */
+    public static Class getSuperClassGenricType(Class clazz) throws IndexOutOfBoundsException {
+        return getSuperClassGenricType(clazz, 0);
+    }
+
+    /**
+     * 通过反射获取定义Class时声明的父类的范型参数的类型.</p>
+     * 如: public BookManager extends GenricManager<Book>
+     *
+     * @param clazz :  需要获取泛型的类Class
+     * @param index :  泛型索引,默认第1个
+     * @return
+     * @throws IndexOutOfBoundsException
+     */
+    public static Class getSuperClassGenricType(Class clazz, int index) throws IndexOutOfBoundsException {
+        Type genType = clazz.getGenericSuperclass();
+        if (!(genType instanceof ParameterizedType)) {
+            return null;
+        }
+        Type[] params = ((ParameterizedType) genType).getActualTypeArguments();
+        if (index >= params.length || index < 0) {
+            return null;
+        }
+        if (!(params[index] instanceof Class)) {
+            return null;
+        }
+        return (Class) params[index];
+    }
+
+    /**
      * 深度获取类属性和属性类型（类树形结构）
      *
      * @param clazz 类
