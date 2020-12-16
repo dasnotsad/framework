@@ -47,8 +47,7 @@ public class ElasticJobConfiguration implements InitializingBean {
 		return new ElasticJobListener(p.getStartedTimeoutMilliseconds(), p.getCompletedTimeoutMilliseconds());
 	}
 
-	@Bean
-	public ElasticJobService elasticJobService() {
+	private ElasticJobService elasticJobService() {
 		return new ElasticJobService(zookeeperRegistryCenter(), elasticJobListener(), context);
 	}
 
