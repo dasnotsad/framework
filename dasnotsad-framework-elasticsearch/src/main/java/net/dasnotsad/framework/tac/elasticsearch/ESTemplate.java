@@ -14,7 +14,7 @@ import net.dasnotsad.framework.tac.elasticsearch.retreat.feign.func.DelayMessage
 import net.dasnotsad.framework.tac.elasticsearch.utils.DeclaredFieldsUtil;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsVersion;
 import net.dasnotsad.framework.tac.elasticsearch.core.executor.IExector;
-import net.dasnotsad.framework.tac.elasticsearch.retreat.feign.model.OperationType;
+import net.dasnotsad.framework.tac.elasticsearch.utils.MappingToolkit;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
@@ -240,6 +240,9 @@ public class ESTemplate {
      */
     public <T> void bulkAsyncInsert(final int whichDataSource, final String index, final T source) {
         Objects.requireNonNull(source, "source must not be null");
+
+        autoIndex(index, source.getClass());
+
         Queue<IndexRequest> requests = getQueueFromMap(whichDataSource);
         IndexRequest request = new IndexRequest(index).id(getIdByIdentify(source))
                 .source(JSON.toJSONString(source), XContentType.JSON);
@@ -262,6 +265,9 @@ public class ESTemplate {
         Objects.requireNonNull(sources, "sources must not be null");
 
         if (sources.size() >= DEFAULT_LIMIT && sources.size() <= DEFAULT_MAX_LIMIT) {
+
+            autoIndex(index, sources.get(0).getClass());
+
             BulkRequest bulkRequest = new BulkRequest();
             for (T t : sources) {
                 IndexRequest request = new IndexRequest(index).id(getIdByIdentify(t))
@@ -490,6 +496,18 @@ public class ESTemplate {
     /**
      * 插入文档
      *
+     * @param index           索引名
+     * @param source          数据对象（代）
+     * @return IndexResponse
+     */
+    public <T> IndexResponse insertDocment(final String index, final T source) {
+        String _id = getIdByIdentify(source);
+        return insertDocment(index, _id, source);
+    }
+
+    /**
+     * 插入文档
+     *
      * @param index  索引名
      * @param id     id值
      * @param source 数据对象
@@ -513,24 +531,14 @@ public class ESTemplate {
         Objects.requireNonNull(index, "index must not be null");
         Objects.requireNonNull(source, "source must not be null");
 
+        autoIndex(index, source.getClass());
+
         IndexRequest request = new IndexRequest(index).id(id);
         Long _version = getVerByVersion(source);
         request.versionType(VersionType.EXTERNAL);
         request.version(_version == null ? System.currentTimeMillis() : _version);
         request.source(JSONObject.toJSONString(source), XContentType.JSON);
         return exec(whichDataSource, insertDocumentOperator, request);
-    }
-
-    /**
-     * 插入文档
-     *
-     * @param index           索引名
-     * @param source          数据对象（代）
-     * @return IndexResponse
-     */
-    public <T> IndexResponse insertDocment(final String index, final T source) {
-        String _id = getIdByIdentify(source);
-        return insertDocment(index, _id, source);
     }
 
     /**
@@ -574,6 +582,9 @@ public class ESTemplate {
         Objects.requireNonNull(index, "index must not be null");
         Objects.requireNonNull(sources, "sources must not be null");
         Objects.requireNonNull(idList, "idList must not be null");
+
+        autoIndex(index, sources.get(0).getClass());
+
         BulkRequest requests = new BulkRequest();
         for (int i = 0; i < sources.size(); i++) {
             T source = sources.get(i);
@@ -1075,26 +1086,6 @@ public class ESTemplate {
         return response;
     }
 
-    @Deprecated
-    public <T extends IPageModel> ESPageResult<T> queryByDeeppaging(final PagenationCondtion condtion,
-                                                                    final Class<T> beanCls) {
-        PagenationCondtion queryCondtion = condtion;
-        while (true) {
-            PagenationCondtionEntity entity = queryCondtion.calcPagenationCondtionEntity();
-            /* 默认跳过循环条数 */
-            if (entity.getQueryFromValue() >= queryCondtion.getMaxQueryNum()) {
-                queryCondtion = queryCondtion.nextQueryCondion(entity.getSortOrder());
-                continue;
-            }
-            if (entity.getQueryPageNo() != condtion.getInputPageNo()) {
-                queryCondtion.getEsPagenation().queryHits(this, entity, beanCls);
-                queryCondtion = queryCondtion.getPreCondtion();
-                continue;
-            }
-            return queryCondtion.getEsPagenation().query(this, entity, beanCls);
-        }
-    }
-
     /**
      * 深度分页查询
      *
@@ -1330,9 +1321,6 @@ public class ESTemplate {
     private <T> IndexResponse createDocument(final T bean, final String indexName, final EsDocument doc) {
         Field field = DeclaredFieldsUtil.findAnnotation(bean.getClass(), EsIdentify.class);
         Objects.requireNonNull(field, "@EsIdentify not found");
-        // 索引情况判断
-        if (doc != null && doc.createIndex() && !indexExists(doc.whichDataSource(), indexName))
-            createIndex(doc.whichDataSource(), indexName, doc.shards(), doc.replicas());
         try {
             String id = field.get(bean).toString();
             return insertDocment(doc==null ? whichDataSource.get() : doc.whichDataSource(), indexName, id, bean);
@@ -1370,9 +1358,6 @@ public class ESTemplate {
     private <T> void createDocumentAsync(final T bean, final String indexName, final EsDocument doc) {
         Field field = DeclaredFieldsUtil.findAnnotation(bean.getClass(), EsIdentify.class);
         Objects.requireNonNull(field, "@EsIdentify not found");
-        // 索引情况判断
-        if (doc != null && doc.createIndex() && !indexExists(doc.whichDataSource(), indexName))
-            createIndex(doc.whichDataSource(), indexName, doc.shards(), doc.replicas());
         bulkAsyncInsert(doc==null ? whichDataSource.get() : doc.whichDataSource(), indexName, bean);
     }
 
@@ -1405,8 +1390,6 @@ public class ESTemplate {
     }
 
     private <T> BulkResponse bulkCreateDocument(final List<T> beans, final String indexName, final EsDocument doc) {
-        if (doc != null && doc.createIndex() && !indexExists(doc.whichDataSource(), indexName))
-            createIndex(doc.whichDataSource(), indexName, doc.shards(), doc.replicas());
         return bulkInsert(doc==null ? whichDataSource.get() : doc.whichDataSource(), indexName, beans);
     }
 
@@ -1439,8 +1422,6 @@ public class ESTemplate {
     }
 
     private <T> void bulkCreateDocumentAsync(final List<T> beans, final String indexName, final EsDocument doc) {
-        if (doc != null && doc.createIndex() && !indexExists(doc.whichDataSource(), indexName))
-            createIndex(doc.whichDataSource(), indexName, doc.shards(), doc.replicas());
         bulkAsyncInsert(doc==null ? whichDataSource.get() : doc.whichDataSource(), indexName, beans);
     }
 
@@ -1756,104 +1737,6 @@ public class ESTemplate {
             }
     }
 
-    /**
-     * 补偿机制用，insert一条数据
-     *
-     * @param request 数据对象
-     * @param nodes   数据源地址
-     * @return IndexResponse
-     */
-    public IndexResponse execIndexRequest(IndexRequest request, String nodes) throws IOException {
-        RestHighLevelClient client = containers.get(containers.getWhichDataSource(nodes));
-        return client.index(request, RequestOptions.DEFAULT);
-    }
-
-    /**
-     * 补偿机制用，delete一条数据
-     *
-     * @param request 数据对象
-     * @param nodes   数据源地址
-     * @return DeleteResponse
-     */
-    public DeleteResponse execDeleteRequest(DeleteRequest request, String nodes) throws IOException {
-        RestHighLevelClient client = containers.get(containers.getWhichDataSource(nodes));
-        return client.delete(request, RequestOptions.DEFAULT);
-    }
-
-    /**
-     * 补偿机制用，update一条数据
-     *
-     * @param request 数据对象
-     * @param nodes   数据源地址
-     * @return UpdateResponse
-     */
-    public UpdateResponse execUpdateRequest(UpdateRequest request, String nodes) throws IOException {
-        RestHighLevelClient client = containers.get(containers.getWhichDataSource(nodes));
-        return client.update(request, RequestOptions.DEFAULT);
-    }
-
-    /**
-     * 补偿机制用，bulk一条数据
-     *
-     * @param request 数据对象
-     * @param nodes   数据源地址
-     * @return BulkResponse
-     */
-    public BulkResponse execBulkRequest(BulkRequest request, String nodes) throws IOException {
-        RestHighLevelClient client = containers.get(containers.getWhichDataSource(nodes));
-        return client.bulk(request, RequestOptions.DEFAULT);
-    }
-
-    /**
-     * 补偿机制用，批量异步写入
-     *
-     * @param request 索引名
-     * @param nodes   数据源地址
-     */
-    public void execAsyncInsert(final IndexRequest request, final String nodes) {
-        Queue<IndexRequest> requests = getQueueFromMap(containers.getWhichDataSource(nodes));
-        requests.offer(request);
-    }
-
-    /**
-     * feign方式异步写入
-     *
-     * @param source 存储对象
-     */
-    public <T> void asyncInsertByFeign(T source) {
-        Objects.requireNonNull(source, "bean must not be null");
-        EsDocument doc = source.getClass().getAnnotation(EsDocument.class);
-        Objects.requireNonNull(doc, "@EsDocument not found");
-        asyncInsertByFeign(doc.whichDataSource(), doc.indexName(), source);
-    }
-
-    /**
-     * feign方式异步写入
-     *
-     * @param index  索引名
-     * @param source 存储对象
-     */
-    public <T> void asyncInsertByFeign(String index, T source) {
-        asyncInsertByFeign(whichDataSource.get(), index, source);
-    }
-
-    /**
-     * feign方式异步写入
-     *
-     * @param whichDataSource 数据源标识
-     * @param index           索引名
-     * @param source          存储对象
-     */
-    public <T> void asyncInsertByFeign(int whichDataSource, String index, T source) {
-        IndexRequest request = new IndexRequest(index).id(getIdByIdentify(source))
-                .source(JSON.toJSONString(source), XContentType.JSON);
-        Long _version = getVerByVersion(source);
-        request.versionType(VersionType.EXTERNAL);
-        request.version(_version == null ? System.currentTimeMillis() : _version);
-        delayMessageBuilder.createRetreatRecord(whichDataSource, request, sysCode, OperationType.ASYNCINSERT, 0L, "异步写入");
-    }
-
-
     //说明，这个remove里面如果没有单引号的话，会报错
     private final String REMOVE_SCRIPT = "ctx._source.remove('%s')";
     private final String ID_FORMAT = "current id is [%s]";
@@ -1948,5 +1831,19 @@ public class ESTemplate {
                 }
             });
         });
+    }
+
+    /**
+     * 自动创建索引
+     *
+     * @param indexName 索引名数据源标识
+     * @param clazz     类
+     */
+    private void autoIndex(String indexName, Class<?> clazz){
+        EsDocument doc = clazz.getAnnotation(EsDocument.class);
+        if (doc != null && doc.createIndex() && !indexExists(doc.whichDataSource(), indexName)){
+            XContentBuilder mapping = MappingToolkit.createMapping(clazz);
+            createIndex(doc.whichDataSource(), indexName, doc.shards(), doc.replicas(), mapping);
+        }
     }
 }
