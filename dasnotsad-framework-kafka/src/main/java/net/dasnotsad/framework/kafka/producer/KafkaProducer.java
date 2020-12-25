@@ -195,7 +195,7 @@ public class KafkaProducer {
 		ProducerRecord<String, byte[]> producerRecord;
 		if (message instanceof String)
 			producerRecord = new ProducerRecord<>(topic, key==null ? (String)message : key,
-					((String) message).getBytes(Charset.defaultCharset()));
+					((String) message).getBytes(Charset.forName("UTF-8")));
 		else
 			producerRecord = new ProducerRecord<>(topic, JSONObject.toJSONString(message),
 					JSON.toJSONBytes(message));

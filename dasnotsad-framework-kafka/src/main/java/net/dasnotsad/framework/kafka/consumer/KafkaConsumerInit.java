@@ -141,7 +141,7 @@ public class KafkaConsumerInit {
 				Class<?> valueClass = method.getParameterTypes()[0];
 				method.setAccessible(true);
 				for (ConsumerRecord<String, byte[]> record : records) {
-					String metadata = new String(record.value(), Charset.defaultCharset());
+					String metadata = new String(record.value(), Charset.forName("UTF-8"));
 					method.invoke(bean, (valueClass == String.class) ? metadata : JSON.parseObject(metadata, valueClass));
 				}
 			} catch (Exception e) {
