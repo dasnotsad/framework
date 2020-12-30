@@ -100,7 +100,7 @@ public final class BeanUtil {
                         subNode.setNodes(classToFieldTree(generic));
                     }
                 }
-            } else if (!fClass.isPrimitive() && !fClass.getName().startsWith("java.")) {
+            } else if (!fClass.isPrimitive() && !fClass.getName().startsWith("java.") && !fClass.isEnum()) {
                 subNode.setNodes(classToFieldTree(fClass));
             }
             set.add(subNode);

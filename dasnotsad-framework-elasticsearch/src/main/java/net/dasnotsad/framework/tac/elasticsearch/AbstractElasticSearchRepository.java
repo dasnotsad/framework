@@ -37,8 +37,6 @@ import org.springframework.util.Assert;
 
 import javax.annotation.Resource;
 import java.io.Serializable;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.*;
 
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
