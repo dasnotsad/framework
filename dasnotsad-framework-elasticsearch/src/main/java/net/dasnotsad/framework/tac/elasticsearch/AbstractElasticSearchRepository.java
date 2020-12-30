@@ -281,7 +281,8 @@ public abstract class AbstractElasticSearchRepository<T, ID extends Serializable
         if (metaData.isCreateIndex() && !indexExists(indexName)) {
             createIndex();
         }
-        this.getESTemplate().bulkAsyncInsert(indexName, entitys);
+        List<? extends T> list = new ArrayList(entitys);
+        this.getESTemplate().bulkAsyncInsert(indexName, list);
     }
 
     /**
