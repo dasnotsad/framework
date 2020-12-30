@@ -100,7 +100,8 @@ public final class BeanUtil {
                         subNode.setNodes(classToFieldTree(generic));
                     }
                 }
-            } else if (!fClass.isPrimitive() && !fClass.getName().startsWith("java.") && !fClass.isEnum()) {
+                //排除掉原生java类、枚举和内部类（不支持内部类）
+            } else if (!fClass.isPrimitive() && !fClass.getName().startsWith("java.") && !fClass.isEnum() && !fClass.isMemberClass()) {
                 subNode.setNodes(classToFieldTree(fClass));
             }
             set.add(subNode);
