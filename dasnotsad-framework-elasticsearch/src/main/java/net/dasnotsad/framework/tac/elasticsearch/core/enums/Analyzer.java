@@ -20,6 +20,8 @@ public enum Analyzer {
     //ik中文分词
     ik_max_word_analyzer("ik_max_word"),
 
+    ik_smart_analyzer("ik_smart"),
+
     no_analyzer("");
 
 
