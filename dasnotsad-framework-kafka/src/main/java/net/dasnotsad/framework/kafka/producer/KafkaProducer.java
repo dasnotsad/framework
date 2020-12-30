@@ -178,7 +178,7 @@ public class KafkaProducer {
 		producer.send(createProducerRecord(producerFactory, topic, key, message), (metadata, exception) -> {
 			try {
 				if (exception != null) {
-					log.error("**********kafka consumer handler cause exception: {}", exception);
+					log.error("**********kafka consumer handler cause exception:{}", exception);
 					exception.printStackTrace();
 				}
 				if (callBack != null)

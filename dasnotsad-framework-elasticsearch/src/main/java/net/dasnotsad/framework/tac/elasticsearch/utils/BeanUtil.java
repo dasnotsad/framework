@@ -77,35 +77,38 @@ public final class BeanUtil {
 
         // node递归处理
         Set<Node> set = new HashSet<>();
-        Arrays.stream(Objects.requireNonNull(allFields)).forEach(field -> {
-            Class fClass = field.getType();
-            Node subNode = Node.builder().field(field).build();
-            if (Collection.class.isAssignableFrom(fClass)) {
-                Type gt = field.getGenericType();
-                if (gt instanceof ParameterizedType) {
-                    ParameterizedType pt = (ParameterizedType) gt;
-                    Class generic = (Class) pt.getActualTypeArguments()[0];
-                    subNode.setGeneric(pt.getActualTypeArguments());
-                    if (!generic.isPrimitive() && !generic.getName().startsWith("java.")) {
-                        subNode.setNodes(classToFieldTree(generic));
+        Arrays.stream(Objects.requireNonNull(allFields))
+                .filter(field -> !field.getName().startsWith("this$"))
+                .forEach(field -> {
+                    Class fClass = field.getType();
+                    Node subNode = Node.builder().field(field).build();
+                    if (Collection.class.isAssignableFrom(fClass)) {
+                        Type gt = field.getGenericType();
+                        if (gt instanceof ParameterizedType) {
+                            ParameterizedType pt = (ParameterizedType) gt;
+                            Class generic = (Class) pt.getActualTypeArguments()[0];
+                            subNode.setGeneric(pt.getActualTypeArguments());
+                            if (!generic.isPrimitive() && !generic.getName().startsWith("java.")) {
+                                subNode.setNodes(classToFieldTree(generic));
+                            }
+                        }
+                    } else if (Map.class.isAssignableFrom(fClass)) {
+                        Type gt = field.getGenericType();
+                        if (gt instanceof ParameterizedType) {
+                            ParameterizedType pt = (ParameterizedType) gt;
+                            Class generic = (Class) pt.getActualTypeArguments()[1];
+                            subNode.setGeneric(pt.getActualTypeArguments());
+                            if (!generic.isPrimitive() && !generic.getName().startsWith("java.")) {
+                                subNode.setNodes(classToFieldTree(generic));
+                            }
+                        }
+                    } else if (!fClass.isPrimitive()
+                            && !fClass.isEnum()
+                            && !fClass.getName().startsWith("java.")) {
+                        subNode.setNodes(classToFieldTree(fClass));
                     }
-                }
-            } else if (Map.class.isAssignableFrom(fClass)) {
-                Type gt = field.getGenericType();
-                if (gt instanceof ParameterizedType) {
-                    ParameterizedType pt = (ParameterizedType) gt;
-                    Class generic = (Class) pt.getActualTypeArguments()[1];
-                    subNode.setGeneric(pt.getActualTypeArguments());
-                    if (!generic.isPrimitive() && !generic.getName().startsWith("java.")) {
-                        subNode.setNodes(classToFieldTree(generic));
-                    }
-                }
-                //排除掉原生java类、枚举和内部类（不支持内部类）
-            } else if (!fClass.isPrimitive() && !fClass.getName().startsWith("java.") && !fClass.isEnum() && !fClass.isMemberClass()) {
-                subNode.setNodes(classToFieldTree(fClass));
-            }
-            set.add(subNode);
-        });
+                    set.add(subNode);
+                });
         return set;
     }
 
