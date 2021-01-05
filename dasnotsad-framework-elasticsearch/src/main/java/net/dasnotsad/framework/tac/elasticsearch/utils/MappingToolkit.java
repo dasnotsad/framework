@@ -55,19 +55,12 @@ public class MappingToolkit {
                     mapping.field("analyzer", esField.analyzer().getCode());
                 if(node.getNodes() != null && node.getNodes().size() > 0) {
                     mapping.startObject("properties");
-                    loopMappingNode(node, mapping);
+                    for(BeanUtil.Node subNode : node.getNodes()) {
+                        addMappingNode(subNode, mapping);
+                    }
                     mapping.endObject();
                 }
                 mapping.endObject();
-            }
-        }
-    }
-
-    @SneakyThrows
-    private static void loopMappingNode(BeanUtil.Node node, XContentBuilder mapping) {
-        if(node.getNodes() != null && node.getNodes().size() > 0) {
-            for(BeanUtil.Node subNode : node.getNodes()) {
-                addMappingNode(subNode, mapping);
             }
         }
     }
