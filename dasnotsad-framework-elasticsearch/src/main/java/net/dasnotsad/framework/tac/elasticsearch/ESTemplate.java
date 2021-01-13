@@ -1140,6 +1140,8 @@ public class ESTemplate {
             throw new RuntimeException("分页pageSize最大不能超过10000");
         SearchResponse response;
         List<T> tss = new ArrayList<>();
+        //打开count追踪
+        searchSourceBuilder.trackTotalHits(true);
         //******2019-12-26 深度分页优化：若没有设置排序，则按照ID倒序排列
         if (searchSourceBuilder.sorts() == null || searchSourceBuilder.sorts().isEmpty())
             searchSourceBuilder.sort("_id", SortOrder.DESC);
