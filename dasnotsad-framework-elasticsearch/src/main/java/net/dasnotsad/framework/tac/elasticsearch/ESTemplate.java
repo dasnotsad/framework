@@ -153,36 +153,48 @@ public class ESTemplate {
     }
 
     class AsyncInsert implements Runnable {
-
         @Override
         public void run() {
             try {//确保定时任务不被终止
-                for (Map.Entry<Integer, Queue<IndexRequest>> entry : delayMap.entrySet()) {
-                    if (!entry.getValue().isEmpty()) {
-                        log.info("************批处理化定时任务处理中...");
-                        BulkRequest bulkRequest = new BulkRequest();
-                        loop:
-                        for (int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
-                            IndexRequest request = entry.getValue().poll();
-                            if (request == null)
-                                break loop;
-                            bulkRequest.add(request);
-                        }
-                        if (!bulkRequest.requests().isEmpty()) {
-                            try {
-                                BulkResponse response = bulk(entry.getKey(), bulkRequest);
-                                if (!response.hasFailures())
-                                    log.info("************成功处理{}条", bulkRequest.requests().size());
-                                else
-                                    log.error("************批处理化定时任务存在失败，失败原因：{}", response.buildFailureMessage());
-                            } catch (Throwable e) {
-                                log.error("************执行异步写入定时任务时发生异常", e.getMessage(), e);
-                            }
-                        }
-                    }
-                }
+                asyncInsert();
             } catch (Throwable e) {
                 log.error("************批处理化定时任务发送异常", e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * 异步批量写入实现
+     */
+    private void asyncInsert() {
+        for (Map.Entry<Integer, Queue<IndexRequest>> entry : delayMap.entrySet()) {
+            asyncInsert(entry.getKey(), entry.getValue());
+        }
+    }
+
+    /**
+     * 异步批量写入实现
+     */
+    private void asyncInsert(int whichDataSource, Queue<IndexRequest> requests) {
+        if(!requests.isEmpty()) {
+            log.info("************批处理化定时任务处理中...");
+            BulkRequest bulkRequest = new BulkRequest();
+            loop:for (int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
+                IndexRequest request = requests.poll();
+                if (request == null)
+                    break loop;
+                bulkRequest.add(request);
+            }
+            if (!bulkRequest.requests().isEmpty()) {
+                try {
+                    BulkResponse response = bulk(whichDataSource, bulkRequest);
+                    if (!response.hasFailures())
+                        log.info("************成功处理{}条", bulkRequest.requests().size());
+                    else
+                        log.error("************批处理化定时任务存在失败，失败原因：{}", response.buildFailureMessage());
+                } catch (Throwable e) {
+                    log.error("************执行异步写入定时任务时发生异常", e.getMessage(), e);
+                }
             }
         }
     }
@@ -250,6 +262,9 @@ public class ESTemplate {
         request.versionType(VersionType.EXTERNAL);
         request.version(_version == null ? System.currentTimeMillis() : _version);
         requests.offer(request);
+        if(requests.size() >= DEFAULT_MAX_LIMIT) {
+            asyncInsert(whichDataSource, requests);
+        }
     }
 
     /**
