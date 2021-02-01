@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 public enum FieldType {
     keyword_type("keyword"),
     text_type("text"),
+    text_nokeyword_type("text_nokeyword"),
     byte_type("byte"),
     short_type("short"),
     integer_type("integer"),

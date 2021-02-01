@@ -1232,7 +1232,7 @@ public class ESTemplate {
         List<String> idList = new ArrayList<>();// ids存储
         int count = 10000 / pageSize;// 一次scroll页数
         int size = pageSize * count;// size取小于10000的最大倍数
-        searchSourceBuilder.from(-1);// 确定没有from，以免报异常
+        searchSourceBuilder.from(0);// 确定没有from，以免报异常
         searchSourceBuilder.size(size);
         searchSourceBuilder.fetchSource(false);// scroll途中不抓取数据，减少IO开销
         SearchResponse response = queryScroll(whichDataSource, searchSourceBuilder, "1m", indices);

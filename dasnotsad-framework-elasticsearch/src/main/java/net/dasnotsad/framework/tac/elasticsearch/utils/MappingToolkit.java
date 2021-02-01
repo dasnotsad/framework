@@ -2,11 +2,14 @@ package net.dasnotsad.framework.tac.elasticsearch.utils;
 
 import lombok.SneakyThrows;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsField;
+import net.dasnotsad.framework.tac.elasticsearch.core.enums.FieldType;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -50,7 +53,20 @@ public class MappingToolkit {
             //没标注ES注解则不予创建mapping
             if (esField != null) {
                 mapping.startObject(field.getName());
-                mapping.field("type", esField.fieldType().getCode());
+                if(FieldType.text_nokeyword_type.getCode().equals(esField.fieldType().getCode())) {
+                    mapping.field("type", "text");
+                }else {
+                    mapping.field("type", esField.fieldType().getCode());
+                }
+                //ES默认text类型设置
+                if(FieldType.text_type.getCode().equals(esField.fieldType().getCode())) {
+                    Map<String, Map<String, Object>> values = new HashMap<>();
+                    Map<String, Object> keyword = new HashMap<>();
+                    keyword.put("ignore_above", 256);
+                    keyword.put("type", "keyword");
+                    values.put("keyword", keyword);
+                    mapping.field("fields", values);
+                }
                 if(!StringUtils.isEmpty(esField.analyzer().getCode()))
                     mapping.field("analyzer", esField.analyzer().getCode());
                 if(node.getNodes() != null && node.getNodes().size() > 0) {
