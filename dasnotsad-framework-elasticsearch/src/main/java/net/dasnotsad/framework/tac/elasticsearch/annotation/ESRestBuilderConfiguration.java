@@ -60,7 +60,8 @@ public class ESRestBuilderConfiguration {
         field2.set(rc, 3000);
 
         builder.setRequestConfig(rc);
-        return builder.build();
+        //针对gzip支持
+        return builder.addHeader("Accept-Encoding", "gzip, deflate").build();
     }
 
     @Bean("ribbonRestTemplate")
