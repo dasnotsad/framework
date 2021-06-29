@@ -5,6 +5,7 @@ kafka:
     #sasl.mechanism: PLAIN #sasl认证需设置
     #security.protocol: SASL_PLAINTEXT #sasl认证需设置
   producer:
+    producer.type: async
     key.serializer: org.apache.kafka.common.serialization.StringSerializer #必填，key序列化类型（由topic+headers+ProducerRecord里的key构成，通常用String即可）
     value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer #必填，value序列化类型（由topic+headers+ProducerRecord里的value构成），也就是传输数据的序列化方式，建议用String或Bytes即可
     partitioner.class: net.dasnotsad.framework.kafka.producer.KafkaPartitioner #自定义分区器

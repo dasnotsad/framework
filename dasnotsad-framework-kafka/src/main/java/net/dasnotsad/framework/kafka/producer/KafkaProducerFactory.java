@@ -46,10 +46,15 @@ public class KafkaProducerFactory {
 	/**
 	 * 创建生产者
 	 */
-	public CloseSafeProducer<String, byte[]> getProducer() {
+	public CloseSafeProducer<String, byte[]> getProducer(Long lingerMs, Long batchSize, String compressionType, Integer acks, Long bufferMemory) {
 		if (this.producer == null) {// 以懒加载的方式创建
 			synchronized (this) {
 				if (this.producer == null) {
+                    producerProperties.put("linger.ms", String.valueOf(lingerMs));
+                    producerProperties.put("batch.size", String.valueOf(batchSize));
+                    producerProperties.put("compression.type", compressionType);
+                    producerProperties.put("acks", String.valueOf(acks));
+                    producerProperties.put("buffer.memory", String.valueOf(bufferMemory));
 					this.producer = new CloseSafeProducer<>(new KafkaProducer<>(p(kafkaServers, producerProperties)));
 				}
 			}

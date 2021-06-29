@@ -29,8 +29,6 @@ import net.dasnotsad.framework.kafka.msg.model.PushReturnType;
 @Slf4j
 public class KafkaProducer {
 
-	private static final String KAFKA_DELAY_TOPIC = "wheel_time_delay_topic";
-
 	public static final int DEFAULT_DATASOURCE = KafkaContainer.DEFAULT_DATASOURCE;
 
 	private ThreadLocal<Integer> whichDataSource = ThreadLocal.withInitial(() -> DEFAULT_DATASOURCE);
@@ -38,8 +36,20 @@ public class KafkaProducer {
 	@Autowired
 	private KafkaContainer kafkaContainer;
 
-	@Value("${spring.application.name:}")
-	private String applicationName;
+	@Value("${kafka.producer.linger.ms:0}")
+	private Long lingerMs;
+
+	@Value("${kafka.producer.batch.size:2097152}")
+	private Long batchSize;
+
+	@Value("${kafka.producer.compression.type:none}")
+	private String compressionType;
+
+	@Value("${kafka.producer.acks:1}")
+	private Integer acks;
+
+	@Value("${kafka.producer.buffer.memory:33554432}")
+	private Long bufferMemory;
 
 	/**
 	 * 设置默认数据源
@@ -106,7 +116,7 @@ public class KafkaProducer {
 	 */
 	public PushReturnType pushMsgSync(int whichDataSource, String topic, String key, Object message) {
 		KafkaProducerFactory producerFactory = kafkaContainer.get(whichDataSource);
-		Producer<String, byte[]> producer = producerFactory.getProducer();
+		Producer<String, byte[]> producer = producerFactory.getProducer(lingerMs, batchSize, compressionType, acks, bufferMemory);
 		Future<RecordMetadata> future = producer.send(createProducerRecord(producerFactory, topic, key, message), (metadata, exception) -> {
 			try {
 				if (exception != null) {
@@ -174,7 +184,7 @@ public class KafkaProducer {
 	 */
 	public void pushMsgAsync(int whichDataSource, String topic, String key, Object message, ProducerAsyncHandler callBack) {
 		KafkaProducerFactory producerFactory = kafkaContainer.get(whichDataSource);
-		Producer<String, byte[]> producer = producerFactory.getProducer();
+		Producer<String, byte[]> producer = producerFactory.getProducer(lingerMs, batchSize, compressionType, acks, bufferMemory);
 		producer.send(createProducerRecord(producerFactory, topic, key, message), (metadata, exception) -> {
 			try {
 				if (exception != null) {
