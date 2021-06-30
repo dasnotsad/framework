@@ -127,7 +127,8 @@ public class KafkaProducer {
 				producer.close();
 			}
 		});
-		producer.flush();
+		if(lingerMs == 0)
+			producer.flush();
 		try {
 			/* RecordMetadata res = */future.get();// 等待返回
 			return PushReturnType.success;
@@ -197,7 +198,8 @@ public class KafkaProducer {
 				producer.close();
 			}
 		});
-		producer.flush();
+		if(lingerMs == 0)
+			producer.flush();
 	}
 
 	//创建kafka消息
