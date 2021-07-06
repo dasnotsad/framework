@@ -11,7 +11,6 @@ import org.apache.shardingsphere.elasticjob.simple.job.SimpleJob;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -27,7 +26,6 @@ public class ElasticJobConfiguration implements InitializingBean {
 	@Autowired
 	private ApplicationContext context;
 
-	@Bean
 	public ZookeeperRegistryCenter zookeeperRegistryCenter() {
 		ZookeeperConfiguration config = new ZookeeperConfiguration(p.getZookeeperNodes(), p.getZookeeperNamespace());
 		config.setMaxRetries(p.getMaxRetries());
@@ -42,7 +40,6 @@ public class ElasticJobConfiguration implements InitializingBean {
 		return registry;
 	}
 
-	@Bean
 	public ElasticJobListener elasticJobListener() {
 		return new ElasticJobListener(p.getStartedTimeoutMilliseconds(), p.getCompletedTimeoutMilliseconds());
 	}
@@ -65,7 +62,7 @@ public class ElasticJobConfiguration implements InitializingBean {
 			}
 			String jobName = StringUtils.defaultIfBlank(annotation.jobName(), simpleJob.getClass().getName());
 			elasticJobService().addJob(simpleJob, jobName, cron, annotation.shardingTotalCount(),
-					p.getZookeeperNodes(), p.getZookeeperNamespace(), annotation.misfire(), annotation.failover(),
+					annotation.misfire(), annotation.failover(),
 					annotation.overwrite(), annotation.description(), annotation.jobParameter(),
 					annotation.shardingItemParameters());
 		}

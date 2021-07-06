@@ -11,7 +11,7 @@
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<elastic-job.version>3.0.0-beta</elastic-job.version>
+		<elastic-job.version>3.0.0</elastic-job.version>
 		<spring-framework.version>5.2.9.RELEASE</spring-framework.version>
 		<spring-boot.version>2.2.10.RELEASE</spring-boot.version>
 	</properties>
