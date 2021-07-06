@@ -8,7 +8,6 @@ import org.apache.shardingsphere.elasticjob.lite.api.bootstrap.impl.ScheduleJobB
 import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperRegistryCenter;
 import org.apache.shardingsphere.elasticjob.simple.job.SimpleJob;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ApplicationContext;
 
 /**
  * @author liuliwei
@@ -17,14 +16,11 @@ import org.springframework.context.ApplicationContext;
 public class ElasticJobService implements InitializingBean {
 
 	private ZookeeperRegistryCenter zookeeperRegistryCenter;
-	private ApplicationContext context;
 	private ElasticJobListener elasticJobListener;
 
-	public ElasticJobService(ZookeeperRegistryCenter zookeeperRegistryCenter, ElasticJobListener elasticJobListener,
-							 ApplicationContext context) {
+	public ElasticJobService(ZookeeperRegistryCenter zookeeperRegistryCenter, ElasticJobListener elasticJobListener) {
 		this.zookeeperRegistryCenter = zookeeperRegistryCenter;
 		this.elasticJobListener = elasticJobListener;
-		this.context = context;
 	}
 
 	/**
@@ -53,7 +49,6 @@ public class ElasticJobService implements InitializingBean {
 	public void afterPropertiesSet() {
 		requireNonNull(this.zookeeperRegistryCenter);
 		requireNonNull(this.elasticJobListener);
-		requireNonNull(this.context);
 	}
 
 }

@@ -15,11 +15,6 @@ public class ElasticJobProperties {
 	private String zookeeperNodes;
 
 	/**
-	 * Zookeeper的命名空间
-	 */
-	private String zookeeperNamespace;
-
-	/**
 	 * 连接Zookeeper的权限令牌 缺省为不需要权限验证
 	 */
 	private String zookeeperToken;
@@ -59,14 +54,6 @@ public class ElasticJobProperties {
 
 	public void setZookeeperNodes(String zookeeperNodes) {
 		this.zookeeperNodes = zookeeperNodes;
-	}
-
-	public String getZookeeperNamespace() {
-		return zookeeperNamespace;
-	}
-
-	public void setZookeeperNamespace(String zookeeperNamespace) {
-		this.zookeeperNamespace = zookeeperNamespace;
 	}
 
 	public String getZookeeperToken() {

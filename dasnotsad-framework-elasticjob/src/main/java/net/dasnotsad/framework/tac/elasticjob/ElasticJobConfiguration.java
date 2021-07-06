@@ -10,6 +10,7 @@ import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperRegistryCente
 import org.apache.shardingsphere.elasticjob.simple.job.SimpleJob;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,8 +27,11 @@ public class ElasticJobConfiguration implements InitializingBean {
 	@Autowired
 	private ApplicationContext context;
 
+	@Value("${spring.application.name:my-app}")
+	private String appName;
+
 	public ZookeeperRegistryCenter zookeeperRegistryCenter() {
-		ZookeeperConfiguration config = new ZookeeperConfiguration(p.getZookeeperNodes(), p.getZookeeperNamespace());
+		ZookeeperConfiguration config = new ZookeeperConfiguration(p.getZookeeperNodes(), appName);
 		config.setMaxRetries(p.getMaxRetries());
 		config.setDigest(p.getZookeeperToken());
 		config.setBaseSleepTimeMilliseconds(p.getBaseSleepTimeMilliseconds());
@@ -45,7 +49,7 @@ public class ElasticJobConfiguration implements InitializingBean {
 	}
 
 	private ElasticJobService elasticJobService() {
-		return new ElasticJobService(zookeeperRegistryCenter(), elasticJobListener(), context);
+		return new ElasticJobService(zookeeperRegistryCenter(), elasticJobListener());
 	}
 
 	private void init() {
