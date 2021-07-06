@@ -75,7 +75,6 @@ public class ElasticJobConfiguration implements InitializingBean {
 	@Override
 	public void afterPropertiesSet() throws Exception {
 		Objects.requireNonNull(p.getZookeeperNodes(), "dasnotsad.paas.elasticjob.zookeeper-nodes must be setting");
-		Objects.requireNonNull(p.getZookeeperNamespace(), "dasnotsad.paas.elasticjob.zookeeper-namespace must be setting");
 		init();
 	}
 
