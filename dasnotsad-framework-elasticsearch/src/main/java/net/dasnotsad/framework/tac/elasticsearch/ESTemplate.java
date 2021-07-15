@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsDocument;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsIdentify;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.RestClientContainer;
+import net.dasnotsad.framework.tac.elasticsearch.core.enums.DocWriteRequestType;
 import net.dasnotsad.framework.tac.elasticsearch.core.executor.RetryExecutor;
 import net.dasnotsad.framework.tac.elasticsearch.core.operator.IOperator;
 import net.dasnotsad.framework.tac.elasticsearch.core.operator.impl.*;
@@ -15,6 +16,7 @@ import net.dasnotsad.framework.tac.elasticsearch.utils.DeclaredFieldsUtil;
 import net.dasnotsad.framework.tac.elasticsearch.annotation.EsVersion;
 import net.dasnotsad.framework.tac.elasticsearch.core.executor.IExector;
 import net.dasnotsad.framework.tac.elasticsearch.utils.MappingToolkit;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
@@ -68,7 +70,7 @@ import java.util.concurrent.TimeUnit;
 import static org.elasticsearch.index.query.QueryBuilders.matchPhraseQuery;
 
 /**
- * ES7.9.3模板工具类
+ * ES7.10.1模板工具类
  *
  * @author liuliwei
  * @since 3.0.0
@@ -81,13 +83,7 @@ public class ESTemplate {
     private RestClientContainer containers;
 
     @Autowired
-    private DelayMessageBuilder delayMessageBuilder;
-
-    @Autowired
     private RequestOptions requestOptions;
-
-    @Value("${spring.application.name}")
-    private String sysCode;
 
     public static final int DEFAULT_DATASOURCE = 0;
     private final int DEFAULT_LIMIT = 1000;// List max item
@@ -112,12 +108,16 @@ public class ESTemplate {
     private IOperator<UpdateByQueryRequest, BulkByScrollResponse> queryUpdateOperator;
     private IOperator<DeleteByQueryRequest, BulkByScrollResponse> queryDeleteOperator;
 
-    //异步写入存储
-    private Map<Integer, Queue<IndexRequest>> delayMap;
+    //异步写入存储（增、删、改）
+    private Map<Integer, Queue<DocWriteRequest>> writeQueueMap;
     //当前应用创建过的或已经验证过的索引缓存，用于提升indicesExists注解验证效率
     private Map<String, String> indexExists;
     //异步写入线程
     private ScheduledExecutorService scheduledExecutorService;
+    /**
+     * 正在异步写入的标记，防止原子争用导致的线程无限循环
+     */
+    private static volatile boolean pollingWrite = false;
 
     public ESTemplate(@Value("${spring.application.name}") String sysCode,
                       @Value("${dasnotsad.paas.es.delaytime:5}") Long delayTime,
@@ -140,7 +140,7 @@ public class ESTemplate {
         aliasesOperator = new AliasesOperator();
         queryUpdateOperator = new QueryUpdateOperator();
         queryDeleteOperator = new QueryDeleteOperator();
-        delayMap = new HashMap<>();
+        writeQueueMap = new HashMap<>();
         whichDataSource = ThreadLocal.withInitial(() -> DEFAULT_DATASOURCE);
         indexExists = new WeakHashMap<>();
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -148,21 +148,32 @@ public class ESTemplate {
 
     @PostConstruct
     private void initTemplate() {
-        scheduledExecutorService.scheduleWithFixedDelay(new AsyncInsert(),
+        scheduledExecutorService.scheduleWithFixedDelay(new AsyncDocWriteRequest(),
                 3, 3, TimeUnit.SECONDS);
     }
 
-    /**
-     * 正在写入的标记，防止原子争用导致的线程无限循环
-     */
-    private static volatile boolean polling = false;
+    //安全添加缓存队列
+    private Queue<DocWriteRequest> getWriteQueueFromMap(int whichDataSource) {
+        Queue<DocWriteRequest> requests;
+        if (!writeQueueMap.containsKey(whichDataSource))
+            synchronized (this) {
+                if (!writeQueueMap.containsKey(whichDataSource)) {
+                    requests = new ConcurrentLinkedQueue<>();
+                    writeQueueMap.put(whichDataSource, requests);
+                } else
+                    requests = writeQueueMap.get(whichDataSource);
+            }
+        else
+            requests = writeQueueMap.get(whichDataSource);
+        return requests;
+    }
 
-    class AsyncInsert implements Runnable {
+    class AsyncDocWriteRequest implements Runnable {
         @Override
         public void run() {
             try {//确保定时任务不被终止
-                if(!polling) {
-                    asyncInsert();
+                if(!pollingWrite) {
+                    asyncWriteRequest();
                 }
             } catch (Throwable e) {
                 log.error("************批处理化定时任务发送异常", e.getMessage(), e);
@@ -173,41 +184,42 @@ public class ESTemplate {
     /**
      * 异步批量写入实现
      */
-    private void asyncInsert() {
-        for (Map.Entry<Integer, Queue<IndexRequest>> entry : delayMap.entrySet()) {
-            asyncInsert(entry.getKey(), entry.getValue());
+    private void asyncWriteRequest() {
+        for (Map.Entry<Integer, Queue<DocWriteRequest>> entry : writeQueueMap.entrySet()) {
+            asyncWriteRequest(entry.getKey(), entry.getValue());
         }
     }
 
     /**
      * 异步批量写入实现
      */
-    private void asyncInsert(int whichDataSource, Queue<IndexRequest> requests) {
+    private void asyncWriteRequest(int whichDataSource, Queue<DocWriteRequest> requests) {
         try {
-            polling = true;
+            pollingWrite = true;
             while(!requests.isEmpty()) {
                 log.info("************批处理化定时任务处理中...");
                 BulkRequest bulkRequest = new BulkRequest();
-                loop:for (int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
-                    IndexRequest request = requests.poll();
-                    if (request == null)
-                        break loop;
+                inloop: for(int i = 0; i < DEFAULT_MAX_LIMIT; i++) {//最多取5000条
+                    DocWriteRequest request = requests.poll();
+                    if (request == null) {
+                        break inloop;
+                    }
                     bulkRequest.add(request);
                 }
-                if (!bulkRequest.requests().isEmpty()) {
+                if(!bulkRequest.requests().isEmpty()) {
                     try {
                         BulkResponse response = bulk(whichDataSource, bulkRequest);
-                        if (!response.hasFailures())
+                        if(!response.hasFailures())
                             log.info("************成功处理{}条", bulkRequest.requests().size());
                         else
                             log.error("************批处理化定时任务存在失败，失败原因：{}", response.buildFailureMessage());
-                    } catch (Throwable e) {
+                    }catch(Throwable e) {
                         log.error("************执行异步写入定时任务时发生异常", e.getMessage(), e);
                     }
                 }
             }
         }finally {
-            polling = false;
+            pollingWrite = false;
         }
     }
 
@@ -235,7 +247,7 @@ public class ESTemplate {
     }
 
     /**
-     * 批量异步写入
+     * 批量异步Insert
      *
      * @param index  索引名
      * @param source 存储对象
@@ -246,7 +258,7 @@ public class ESTemplate {
     }
 
     /**
-     * 批量异步写入
+     * 批量异步Insert
      *
      * @param index   索引名
      * @param sources 存储对象列表
@@ -256,28 +268,7 @@ public class ESTemplate {
     }
 
     /**
-     * 批量异步写入
-     *
-     * @param whichDataSource 数据源标识
-     * @param index           索引名
-     * @param source          存储对象列表
-     */
-    public <T> void bulkAsyncInsert(final int whichDataSource, final String index, final T source) {
-        Objects.requireNonNull(source, "source must not be null");
-
-        autoIndex(index, source.getClass());
-
-        Queue<IndexRequest> requests = getQueueFromMap(whichDataSource);
-        IndexRequest request = new IndexRequest(index).id(getIdByIdentify(source))
-                .source(JSON.toJSONString(source), XContentType.JSON);
-        Long _version = getVerByVersion(source);
-        request.versionType(VersionType.EXTERNAL);
-        request.version(_version == null ? System.currentTimeMillis() : _version);
-        requests.offer(request);
-    }
-
-    /**
-     * 批量异步写入
+     * 批量异步Insert
      *
      * @param whichDataSource 数据源标识
      * @param index           索引名
@@ -309,20 +300,67 @@ public class ESTemplate {
                 bulkAsyncInsert(whichDataSource, index, t);
     }
 
-    //安全添加缓存队列
-    private Queue<IndexRequest> getQueueFromMap(int whichDataSource) {
-        Queue<IndexRequest> requests;
-        if (!delayMap.containsKey(whichDataSource))
-            synchronized (this) {
-                if (!delayMap.containsKey(whichDataSource)) {
-                    requests = new ConcurrentLinkedQueue<>();
-                    delayMap.put(whichDataSource, requests);
-                } else
-                    requests = delayMap.get(whichDataSource);
-            }
-        else
-            requests = delayMap.get(whichDataSource);
-        return requests;
+    /**
+     * 批量异步Insert
+     *
+     * @param whichDataSource 数据源标识
+     * @param index           索引名
+     * @param source          存储对象列表
+     */
+    public <T> void bulkAsyncInsert(final int whichDataSource, final String index, final T source) {
+        bulkAsyncWrite(whichDataSource, DocWriteRequestType.INDEX_REQUEST, index, getIdByIdentify(source), source);
+    }
+
+    /**
+     * 批量异步写入
+     *
+     * @param whichDataSource     数据源标识
+     * @param docWriteRequestType es写入请求类型（增、删、改）
+     * @param index               索引名
+     * @param id                  主键ID
+     * @param source              存储对象列表
+     */
+    public <T> void bulkAsyncWrite(final int whichDataSource, final DocWriteRequestType docWriteRequestType,
+                                   final String index, final String id, final T source) {
+        Objects.requireNonNull(source, "source must not be null");
+
+        autoIndex(index, source.getClass());
+
+        Queue<DocWriteRequest> requests = getWriteQueueFromMap(whichDataSource);
+        Long _version = getVerByVersion(source);
+        switch (docWriteRequestType) {
+            case INDEX_REQUEST:
+                IndexRequest indexRequest = new IndexRequest(index).id(id)
+                        .source(JSON.toJSONString(source), XContentType.JSON);
+                if (_version != null) {
+                    indexRequest.versionType(VersionType.EXTERNAL);
+                    indexRequest.version(_version);
+                }
+                requests.offer(indexRequest);
+                break;
+
+            case UPDATE_REQUEST:
+                UpdateRequest updateRequest = new UpdateRequest(index, id)
+                        .doc(JSON.toJSONString(source), XContentType.JSON);
+                if (_version != null) {
+                    updateRequest.versionType(VersionType.EXTERNAL);
+                    updateRequest.version(_version);
+                }
+                requests.offer(updateRequest);
+                break;
+
+            case DELETE_REQUEST:
+                DeleteRequest deleteRequest = new DeleteRequest(index, id);
+                if (_version != null) {
+                    deleteRequest.versionType(VersionType.EXTERNAL);
+                    deleteRequest.version(_version);
+                }
+                requests.offer(deleteRequest);
+                break;
+
+            default:
+                break;
+        }
     }
 
     //批量操作
